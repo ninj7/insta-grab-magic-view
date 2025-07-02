@@ -10,91 +10,64 @@ const PORT = process.env.PORT || 3001;
 // Security middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://your-frontend-domain.com'] 
-    : ['http://localhost:8080', 'http://localhost:3000', 'http://localhost:5173']
+  origin: process.env.NODE_ENV === 'production' ? false : ['http://localhost:5173', 'http://localhost:3000'],
+  credentials: true
 }));
 
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // limit each IP to 100 requests per windowMs
-  message: {
-    error: 'Too many requests from this IP, please try again later.'
-  }
+  message: 'Too many requests from this IP, please try again later.'
 });
-
 app.use(limiter);
+
+// Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+  res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// Main scraping endpoint
+// Instagram scraping endpoint
 app.post('/api/scrape', async (req, res) => {
   try {
     const { url } = req.body;
-
-    // Validate URL
-    if (!url || typeof url !== 'string') {
-      return res.status(400).json({
-        error: 'URL is required and must be a string'
-      });
-    }
-
-    // Check if it's an Instagram URL
-    if (!url.includes('instagram.com')) {
-      return res.status(400).json({
-        error: 'Please provide a valid Instagram URL'
-      });
-    }
-
-    // Clean and normalize URL
-    const cleanUrl = url.trim().split('?')[0]; // Remove query parameters
     
-    console.log(`Scraping Instagram URL: ${cleanUrl}`);
-
-    const result = await scrapeInstagramMedia(cleanUrl);
-
-    if (!result.success) {
-      return res.status(400).json({
-        error: result.error || 'Failed to extract media from Instagram URL'
-      });
+    if (!url) {
+      return res.status(400).json({ error: 'URL is required' });
     }
 
-    res.json({
-      success: true,
-      data: result.data
-    });
+    // Validate Instagram URL
+    const instagramUrlPattern = /^https?:\/\/(www\.)?instagram\.com\/.+/;
+    if (!instagramUrlPattern.test(url)) {
+      return res.status(400).json({ error: 'Invalid Instagram URL' });
+    }
 
+    const result = await scrapeInstagramMedia(url);
+    res.json(result);
   } catch (error) {
     console.error('Scraping error:', error);
-    
-    res.status(500).json({
-      error: 'Internal server error while processing the request'
+    res.status(500).json({ 
+      error: 'Failed to scrape Instagram media',
+      details: error.message 
     });
   }
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ error: 'Something went wrong!' });
 });
 
 // 404 handler
 app.use('*', (req, res) => {
-  res.status(404).json({
-    error: 'Endpoint not found'
-  });
-});
-
-// Global error handler
-app.use((error, req, res, next) => {
-  console.error('Global error handler:', error);
-  res.status(500).json({
-    error: 'Internal server error'
-  });
+  res.status(404).json({ error: 'Route not found' });
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Instagram scraper backend running on port ${PORT}`);
-  console.log(`📍 Health check: http://localhost:${PORT}/health`);
-  console.log(`📍 Scrape endpoint: http://localhost:${PORT}/api/scrape`);
+  console.log(`Server running on port ${PORT}`);
 });
