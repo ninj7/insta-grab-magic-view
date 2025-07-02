@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Download, Instagram, Play, Image, Eye } from 'lucide-react';
 import { toast } from 'sonner';
@@ -24,18 +23,50 @@ const Index = () => {
 
     setLoading(true);
     
-    // Simulate API call for demo purposes
-    setTimeout(() => {
-      setResult({
-        type: 'video',
-        url: 'https://example.com/video.mp4',
-        thumbnail: 'https://picsum.photos/400/400',
-        title: 'Instagram Reel',
-        size: '2.5 MB'
+    try {
+      // Try to connect to the backend
+      const response = await fetch('http://localhost:3001/api/scrape', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url: url.trim() })
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success) {
+        setResult({
+          type: data.data.type,
+          url: data.data.url,
+          thumbnail: data.data.thumbnail,
+          title: data.data.title,
+          size: data.data.size
+        });
+        toast.success('Content extracted successfully!');
+      } else {
+        toast.error(data.error || 'Failed to extract content');
+      }
+    } catch (error) {
+      console.error('Scraping error:', error);
+      
+      if (error.message.includes('fetch')) {
+        toast.error('Backend server is not running. Please start the backend first.');
+      } else if (error.message.includes('private')) {
+        toast.error('This Instagram content is private or requires login');
+      } else if (error.message.includes('timeout')) {
+        toast.error('Request timed out. Please try again.');
+      } else {
+        toast.error(error.message || 'Failed to extract content');
+      }
+    } finally {
       setLoading(false);
-      toast.success('Content extracted successfully!');
-    }, 3000);
+    }
   };
 
   const handleClear = () => {
@@ -65,6 +96,27 @@ const Index = () => {
           <p className="text-gray-600 text-lg max-w-2xl mx-auto">
             Download Instagram Reels, Posts, and Stories instantly. Just paste the URL and get your content in seconds.
           </p>
+          
+          {/* Backend Status Indicator */}
+          <div className="mt-4 flex items-center justify-center space-x-2">
+            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+            <span className="text-sm text-gray-500">Backend: Ready</span>
+          </div>
+        </div>
+
+        {/* Instructions */}
+        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 mb-8">
+          <h3 className="text-lg font-semibold text-blue-800 mb-3">🚀 Getting Started</h3>
+          <div className="space-y-2 text-blue-700">
+            <p><strong>1.</strong> Make sure the backend is running:</p>
+            <div className="bg-blue-100 rounded-lg p-3 font-mono text-sm">
+              cd backend<br/>
+              npm install<br/>
+              npm run dev
+            </div>
+            <p><strong>2.</strong> Paste any public Instagram URL (post, reel, or story)</p>
+            <p><strong>3.</strong> Click "Extract Content" to get the direct media link</p>
+          </div>
         </div>
 
         {/* Main Content */}
@@ -77,7 +129,7 @@ const Index = () => {
                   type="text"
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
-                  placeholder="Paste Instagram URL here..."
+                  placeholder="Paste Instagram URL here... (e.g., https://www.instagram.com/p/ABC123/)"
                   className="w-full px-6 py-4 rounded-2xl bg-white/50 border-2 border-transparent focus:border-purple-300 focus:bg-white/80 transition-all duration-300 text-lg placeholder-gray-400 shadow-[inset_0_2px_8px_rgba(0,0,0,0.06)]"
                   disabled={loading}
                 />
@@ -102,7 +154,7 @@ const Index = () => {
                   )}
                 >
                   <Download className="w-5 h-5" />
-                  <span>Extract Content</span>
+                  <span>{loading ? 'Extracting...' : 'Extract Content'}</span>
                 </button>
 
                 {(url || result) && (
@@ -123,7 +175,7 @@ const Index = () => {
               <LoadingWave />
               <div className="text-center">
                 <p className="text-lg font-semibold text-gray-700 mb-2">Extracting content...</p>
-                <p className="text-gray-500">This may take a few seconds</p>
+                <p className="text-gray-500">Using Puppeteer to scrape Instagram media</p>
               </div>
             </div>
           )}
