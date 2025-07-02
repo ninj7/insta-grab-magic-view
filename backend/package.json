@@ -1,21 +1,18 @@
 {
-  "name": "instagram-scraper-backend",
+  "name": "backend",
   "version": "1.0.0",
-  "description": "Instagram media scraper backend using Puppeteer",
+  "description": "Backend server for the application",
   "main": "server.js",
-  "type": "module",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "nodemon server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "puppeteer": "^21.6.1",
     "cors": "^2.8.5",
-    "helmet": "^7.1.0",
-    "express-rate-limit": "^7.1.5"
+    "dotenv": "^16.3.1"
   },
-  "engines": {
-    "node": ">=18.0.0"
+  "devDependencies": {
+    "nodemon": "^3.0.1"
   }
 }
